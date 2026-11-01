@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="referrer" content="no-referrer"><title>Gate check-in</title>
+<meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><link rel="icon" href="data:,"><title>Gate check-in</title>
 <style>
 :root{--bg:#f4f4f6;--card:#fff;--fg:#111;--mut:#555;--line:#ddd;--acc:#1f4fd1;--okbg:#106b2c;--ambbg:#8a4b00;--badbg:#a3161a}
 @media(prefers-color-scheme:dark){:root{--bg:#111;--card:#1d1d20;--fg:#f2f2f2;--mut:#aaa;--line:#333;--acc:#5b8cff}}
@@ -20,8 +20,8 @@ input{font:inherit;font-size:20px;width:100%;padding:14px;border-radius:12px;bor
 </style></head><body><div class="wrap">
 <div class="top"><b>Gate check-in</b><span><span id="who" class="mut"></span> <button id="outBtn" class="ghost hide" onclick="endSession('')">Log out</button></span></div>
 <div id="setup" class="card hide"><p>This link is missing its event code. Open the full checker link you were sent.</p></div>
-<div id="login" class="card hide"><p>Enter your checker PIN.</p><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8" placeholder="PIN">
-<p><button class="big" onclick="login()">Start</button></p><p id="loginMsg" class="mut"></p></div>
+<form id="login" class="card hide" onsubmit="login();return false;" autocomplete="off"><p>Enter your checker PIN.</p><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8" placeholder="PIN">
+<p><button type="submit" class="big">Start</button></p><p id="loginMsg" class="mut"></p></form>
 <div id="main" class="hide">
  <div class="card"><div class="stats"><div><b id="sIn">0</b>inside</div><div><b id="sTo">0</b>to come</div><div><b id="sReg">0</b>passes</div></div></div>
  <div id="resultBox" class="hide"><div id="result"></div></div>
@@ -79,5 +79,5 @@ function toggleCam(){if(cam){stopCam();return;}
  cam.start({facingMode:'environment'},{fps:10,qrbox:function(w,h){var s=Math.floor(Math.min(w,h)*0.7);return{width:s,height:s};}},function(txt){var n=Date.now();if(busy||(txt===last&&n-lastT<4000))return;last=txt;lastT=n;if(navigator.vibrate)navigator.vibrate(80);lookup(txt);},function(){})
   .then(function(){$('camBtn').textContent='Stop camera';}).catch(function(e){cam=null;$('camBtn').textContent='Scan QR';var n=(e&&e.name)||'';
    show({colour:'red',title:'Camera not allowed',msg:(n==='NotAllowedError'||/permission/i.test(String(e))?'Allow camera for this site (iPhone: Settings &gt; Safari &gt; Camera &gt; Allow; Android: tap the lock icon &gt; Permissions &gt; Camera). ':'')+'Or type the code, or search by name or phone.'});});}
-$('pin').addEventListener('keydown',function(e){if(e.key==='Enter')login();});$('code').addEventListener('keydown',function(e){if(e.key==='Enter')lookup(this.value);});$('q').addEventListener('keydown',function(e){if(e.key==='Enter')search();});
+$('code').addEventListener('keydown',function(e){if(e.key==='Enter')lookup(this.value);});$('q').addEventListener('keydown',function(e){if(e.key==='Enter')search();});
 </script></body></html>
