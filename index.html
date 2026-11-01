@@ -63,11 +63,11 @@ function show(o){$('resultBox').classList.remove('hide');$('result').innerHTML='
  (o.undo?'<button class="undo" onclick="undo()">Undo 1 (mistake)</button>':'')+'</div>';$('resultBox').scrollIntoView({behavior:'smooth',block:'start'});}
 function step(d){if(!cur)return;cnt=Math.max(1,Math.min(cur.remaining,cnt+d));$('cnt').textContent=cnt;}
 function admit(){if(busy||!cur)return;busy=true;call('admit',{token:cur.token,count:cnt,expectedRemaining:cur.remaining},function(r){busy=false;
- if(r.ok){var g=r.guest;cur=g;show({colour:r.bannerColour||(g.remaining>0?'amber':'green'),title:'Admitted '+r.admittedNow,msg:esc(g.name)+': '+g.admitted+' of '+g.size+' inside'+(g.remaining?', '+g.remaining+' still to come.':'. All in.'),undo:true});call('stats',{},function(x){if(x.ok)stat(x.stats);});return;}
+ if(r.ok){var g=r.guest;cur=g;show({colour:r.bannerColour||(g.remaining>0?'amber':'green'),title:'Admitted '+r.admittedNow,msg:esc(g.name)+': '+g.admitted+' of '+g.size+' inside'+(g.remaining?', '+g.remaining+' still to come.':'. All in.'),undo:true});if(r.stats)stat(r.stats);else call('stats',{},function(x){if(x.ok)stat(x.stats);});return;}
  if(r.code==='OVER'||r.code==='FULL'){open(r.guest);return;}
  show({colour:'red',title:'Not admitted',msg:r.code==='BUSY'?'Busy, tap Admit again.':'Please try again.'});});}
 function undo(){if(busy||!cur||!confirm('Undo 1 admitted person for '+cur.name+'?'))return;busy=true;call('undo',{token:cur.token,count:1},function(r){busy=false;
- if(r.ok){var g=r.guest;cur=g;show({colour:'amber',title:'Undone 1',msg:esc(g.name)+': '+g.admitted+' of '+g.size+' inside.',undo:g.admitted>0,admit:false});call('stats',{},function(x){if(x.ok)stat(x.stats);});return;}
+ if(r.ok){var g=r.guest;cur=g;show({colour:'amber',title:'Undone 1',msg:esc(g.name)+': '+g.admitted+' of '+g.size+' inside.',undo:g.admitted>0,admit:false});if(r.stats)stat(r.stats);else call('stats',{},function(x){if(x.ok)stat(x.stats);});return;}
  show({colour:'red',title:'Not undone',msg:r.code==='UNKNOWN'?'Undo is not switched on yet. Ask the organiser to fix it in the sheet.':'Please try again.'});});}
 function search(){var q=$('q').value.trim();if(q.length<2)return;call('search',{query:q},function(r){
  $('hits').innerHTML=(r.results||[]).map(function(g,i){return '<div class="hit" data-i="'+i+'"><span>'+esc(g.name)+'<br><span class="mut">&hellip;'+esc(g.phoneTail)+' &middot; '+esc(g.token)+'</span></span><span>'+g.admitted+'/'+g.size+'</span></div>';}).join('')||'<p class="mut">No match.</p>';
