@@ -1,0 +1,83 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>Gate check-in</title>
+<style>
+:root{--bg:#f4f4f6;--card:#fff;--fg:#111;--mut:#555;--line:#ddd;--acc:#1f4fd1;--okbg:#106b2c;--ambbg:#8a4b00;--badbg:#a3161a}
+@media(prefers-color-scheme:dark){:root{--bg:#111;--card:#1d1d20;--fg:#f2f2f2;--mut:#aaa;--line:#333;--acc:#5b8cff}}
+*{box-sizing:border-box}body{margin:0;font:17px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+.wrap{max-width:560px;margin:0 auto;padding:12px}.card{background:var(--card);border-radius:14px;padding:14px;margin:10px 0}
+.top{display:flex;justify-content:space-between;align-items:center}.mut{color:var(--mut)}.hide{display:none!important}
+button{font:inherit;font-weight:600;border:0;border-radius:12px;padding:16px;background:var(--acc);color:#fff;min-height:56px;cursor:pointer}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--line);min-height:40px;padding:8px 12px}
+input{font:inherit;font-size:20px;width:100%;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.row{display:flex;gap:8px}.row input{flex:1}.big{width:100%;font-size:20px}
+#reader{width:100%;border-radius:12px;overflow:hidden}#reader video{width:100%!important}
+.res{border-radius:14px;padding:16px;color:#fff}.green{background:var(--okbg)}.amber{background:var(--ambbg)}.red{background:var(--badbg)}
+.res h2{margin:0 0 6px;font-size:28px}.step{display:flex;align-items:center;gap:14px;margin:14px 0}.step button{width:64px;font-size:28px;background:rgba(0,0,0,.3)}
+.step b{font-size:36px;min-width:52px;text-align:center}.admit{width:100%;background:#fff;color:#111;font-size:22px}
+.undo{margin-top:10px;width:100%;background:rgba(0,0,0,.3);font-size:16px;min-height:44px}
+.stats{display:flex;text-align:center}.stats div{flex:1}.stats b{display:block;font-size:24px}
+.hit{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
+</style></head><body><div class="wrap">
+<div class="top"><b>Gate check-in</b><span><span id="who" class="mut"></span> <button id="outBtn" class="ghost hide" onclick="endSession('')">Log out</button></span></div>
+<div id="setup" class="card hide"><p>This link is missing its event code. Open the full checker link you were sent.</p></div>
+<div id="login" class="card hide"><p>Enter your checker PIN.</p><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8" placeholder="PIN">
+<p><button class="big" onclick="login()">Start</button></p><p id="loginMsg" class="mut"></p></div>
+<div id="main" class="hide">
+ <div class="card"><div class="stats"><div><b id="sIn">0</b>inside</div><div><b id="sTo">0</b>to come</div><div><b id="sReg">0</b>passes</div></div></div>
+ <div id="resultBox" class="hide"><div id="result"></div></div>
+ <div class="card"><div id="reader"></div><button id="camBtn" class="big" onclick="toggleCam()" style="margin-top:8px">Scan QR</button>
+  <p class="mut">Or type the code</p><div class="row"><input id="code" placeholder="DIW-XXXXXXXX" autocapitalize="characters" autocomplete="off"><button style="flex:0 0 96px" onclick="lookup($('code').value)">Check</button></div></div>
+ <div class="card"><p class="mut">Search name or last 4 phone digits</p><div class="row"><input id="q" placeholder="Name or phone" autocomplete="off"><button style="flex:0 0 96px" onclick="search()">Find</button></div><div id="hits"></div></div>
+</div></div>
+<script src="html5-qrcode.min.js"></script>
+<script>
+// Event code = Apps Script deployment id, from ?e=... (kept in this browser after first open).
+var ID_RE=/^AKfycb[A-Za-z0-9_-]{30,120}$/,EXEC='',SESS='',cur=null,cnt=1,cam=null,busy=false,poll=null;
+function $(i){return document.getElementById(i);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function ls(k,v){try{if(v===undefined)return localStorage.getItem(k)||'';if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(e){return '';}}
+(function(){var id=new URLSearchParams(location.search).get('e')||'';if(ID_RE.test(id))ls('gateEvent',id);else id=ls('gateEvent');
+ if(!ID_RE.test(id)){$('setup').classList.remove('hide');return;}EXEC='https://script.google.com/macros/s/'+id+'/exec';
+ if(location.search)history.replaceState(null,'',location.pathname);
+ SESS=ls('gateSession');if(SESS)call('stats',{},function(x){if(x.ok)enter(ls('gateWho'),x.stats);});else $('login').classList.remove('hide');})();
+function post(a,args){return fetch(EXEC,{method:'POST',redirect:'follow',cache:'no-store',credentials:'omit',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:a,args:args})})
+ .then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();});}
+function fail(){busy=false;show({colour:'red',title:'Not done',msg:'No connection or server busy. Try again.'});}
+function call(a,args,cb){args=args||{};args.session=SESS;post(a,args).then(function(r){
+ if(r&&r.code==='SESSION'){busy=false;endSession('Signed out. Enter your PIN again.');return;}
+ if(r&&r.code==='ERROR'){fail();return;}cb(r);}).catch(fail);}
+function login(){var p=$('pin').value.trim();if(!p)return;$('loginMsg').textContent='Checking…';post('login',{pin:p}).then(function(r){$('pin').value='';
+ if(!r.ok){$('loginMsg').textContent=r.code==='LOCKED'?'Too many wrong PINs, try again in '+r.minutesLeft+' min.':r.code==='BUSY'?'Busy, try again.':r.code==='PIN'?'PIN not recognised.':'Something went wrong, try again.';return;}
+ SESS=r.session;ls('gateSession',SESS);ls('gateWho',r.checker);$('loginMsg').textContent='';enter(r.checker,r.stats);}).catch(function(){$('loginMsg').textContent='No connection, try again.';});}
+function endSession(m){SESS='';ls('gateSession',null);if(poll){clearInterval(poll);poll=null;}stopCam();$('main').classList.add('hide');$('outBtn').classList.add('hide');$('who').textContent='';$('login').classList.remove('hide');$('loginMsg').textContent=m||'';}
+function enter(who,s){$('login').classList.add('hide');$('main').classList.remove('hide');$('outBtn').classList.remove('hide');$('who').textContent=who||'';stat(s);
+ if(!poll)poll=setInterval(function(){if(!busy)call('stats',{},function(x){if(x.ok)stat(x.stats);});},20000);}
+function stat(s){if(!s)return;$('sIn').textContent=s.peopleIn;$('sTo').textContent=s.peopleExpected-s.peopleIn;$('sReg').textContent=s.registrations;}
+function lookup(t){t=String(t||'').trim();if(busy||!t)return;busy=true;show({colour:'amber',title:'Checking…',msg:esc(t)});call('lookup',{token:t},function(r){busy=false;
+ if(!r.ok){cur=null;show({colour:'red',title:'Not on the list',msg:'Code not recognised. Send the guest to the help desk.'});return;}open(r.guest);});}
+function open(g){cur=g;cnt=g.remaining;$('hits').innerHTML='';
+ if(g.remaining<=0){show({colour:'red',title:'Already checked in',msg:esc(g.name)+': all '+g.size+' already inside (last '+esc(g.lastEntry)+', '+esc(g.checkedBy)+').',undo:g.admitted>0});return;}
+ show({colour:g.admitted>0?'amber':'green',title:esc(g.name),msg:(g.admitted>0?g.admitted+' of '+g.size+' already inside. ':'')+g.remaining+' to come on this pass.',admit:true});}
+function show(o){$('resultBox').classList.remove('hide');$('result').innerHTML='<div class="res '+o.colour+'"><h2>'+o.title+'</h2><div>'+o.msg+'</div>'+(o.admit?
+ '<div class="step"><button onclick="step(-1)" aria-label="fewer">&minus;</button><b id="cnt">'+cnt+'</b><button onclick="step(1)" aria-label="more">+</button><span>people now</span></div><button class="admit" onclick="admit()">Admit</button>':'')+
+ (o.undo?'<button class="undo" onclick="undo()">Undo 1 (mistake)</button>':'')+'</div>';$('resultBox').scrollIntoView({behavior:'smooth',block:'start'});}
+function step(d){if(!cur)return;cnt=Math.max(1,Math.min(cur.remaining,cnt+d));$('cnt').textContent=cnt;}
+function admit(){if(busy||!cur)return;busy=true;call('admit',{token:cur.token,count:cnt,expectedRemaining:cur.remaining},function(r){busy=false;
+ if(r.ok){var g=r.guest;cur=g;show({colour:r.bannerColour||(g.remaining>0?'amber':'green'),title:'Admitted '+r.admittedNow,msg:esc(g.name)+': '+g.admitted+' of '+g.size+' inside'+(g.remaining?', '+g.remaining+' still to come.':'. All in.'),undo:true});call('stats',{},function(x){if(x.ok)stat(x.stats);});return;}
+ if(r.code==='OVER'||r.code==='FULL'){open(r.guest);return;}
+ show({colour:'red',title:'Not admitted',msg:r.code==='BUSY'?'Busy, tap Admit again.':'Please try again.'});});}
+function undo(){if(busy||!cur||!confirm('Undo 1 admitted person for '+cur.name+'?'))return;busy=true;call('undo',{token:cur.token,count:1},function(r){busy=false;
+ if(r.ok){var g=r.guest;cur=g;show({colour:'amber',title:'Undone 1',msg:esc(g.name)+': '+g.admitted+' of '+g.size+' inside.',undo:g.admitted>0,admit:false});call('stats',{},function(x){if(x.ok)stat(x.stats);});return;}
+ show({colour:'red',title:'Not undone',msg:r.code==='UNKNOWN'?'Undo is not switched on yet. Ask the organiser to fix it in the sheet.':'Please try again.'});});}
+function search(){var q=$('q').value.trim();if(q.length<2)return;call('search',{query:q},function(r){
+ $('hits').innerHTML=(r.results||[]).map(function(g,i){return '<div class="hit" data-i="'+i+'"><span>'+esc(g.name)+'<br><span class="mut">&hellip;'+esc(g.phoneTail)+' &middot; '+esc(g.token)+'</span></span><span>'+g.admitted+'/'+g.size+'</span></div>';}).join('')||'<p class="mut">No match.</p>';
+ Array.prototype.forEach.call(document.querySelectorAll('.hit'),function(el){el.onclick=function(){open(r.results[+el.dataset.i]);};});});}
+function stopCam(){if(cam){var c=cam;cam=null;c.stop().catch(function(){}).then(function(){try{c.clear();}catch(e){}});}$('camBtn').textContent='Scan QR';}
+function toggleCam(){if(cam){stopCam();return;}
+ if(!window.Html5Qrcode){show({colour:'red',title:'Camera unavailable',msg:'Type the code or search instead.'});return;}
+ cam=new Html5Qrcode('reader',{formatsToSupport:[0],useBarCodeDetectorIfSupported:true,verbose:false});var last='',lastT=0;$('camBtn').textContent='Starting camera…';
+ cam.start({facingMode:'environment'},{fps:10,qrbox:function(w,h){var s=Math.floor(Math.min(w,h)*0.7);return{width:s,height:s};}},function(txt){var n=Date.now();if(busy||(txt===last&&n-lastT<4000))return;last=txt;lastT=n;if(navigator.vibrate)navigator.vibrate(80);lookup(txt);},function(){})
+  .then(function(){$('camBtn').textContent='Stop camera';}).catch(function(e){cam=null;$('camBtn').textContent='Scan QR';var n=(e&&e.name)||'';
+   show({colour:'red',title:'Camera not allowed',msg:(n==='NotAllowedError'||/permission/i.test(String(e))?'Allow camera for this site (iPhone: Settings &gt; Safari &gt; Camera &gt; Allow; Android: tap the lock icon &gt; Permissions &gt; Camera). ':'')+'Or type the code, or search by name or phone.'});});}
+$('pin').addEventListener('keydown',function(e){if(e.key==='Enter')login();});$('code').addEventListener('keydown',function(e){if(e.key==='Enter')lookup(this.value);});$('q').addEventListener('keydown',function(e){if(e.key==='Enter')search();});
+</script></body></html>
