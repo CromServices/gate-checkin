@@ -19,7 +19,7 @@ input{font:inherit;font-size:20px;width:100%;padding:14px;border-radius:12px;bor
 .hit{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
 </style></head><body><div class="wrap">
 <div class="top"><b>Gate check-in</b><span><span id="who" class="mut"></span> <button id="outBtn" class="ghost hide" onclick="endSession('')">Log out</button></span></div>
-<div id="setup" class="card hide"><p>This link is missing its event code. Open the full checker link you were sent.</p></div>
+<div id="setup" class="card hide"><p>This page needs your event's full checker link (it ends in <b>?e=…</b>). Ask the organiser for it, then open it once on this phone; after that the plain link works too.</p></div>
 <form id="login" class="card hide" onsubmit="login();return false;" autocomplete="off"><p>Enter your checker PIN.</p><input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="8" placeholder="PIN">
 <p><button type="submit" class="big">Start</button></p><p id="loginMsg" class="mut"></p></form>
 <div id="main" class="hide">
